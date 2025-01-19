@@ -1,0 +1,18 @@
+export type Place
+  = Place(
+    // id
+    String,
+    // name
+    String,
+  )
+  // I know X from Somewhere
+  | Somewhere
+
+concretePlace :: Place -> String
+export concretePlace = where {
+  Place(_, n) =>
+    n
+
+  _ =>
+    "somewhere"
+}

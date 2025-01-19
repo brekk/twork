@@ -1,0 +1,7 @@
+// a little Person
+export type Person
+  = Person(String)
+  // a lethal Poison
+  | Ghost(String)
+
+export type Status = Likes | Known | Disliked | Unknown

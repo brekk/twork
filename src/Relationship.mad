@@ -1,0 +1,37 @@
+import type { Person, Status } from "@/Person"
+import type { Place } from "@/Place"
+
+import { Known } from "@/Person"
+import { Somewhere } from "@/Place"
+
+
+
+// e.g. A knows B from F and their shared status is Liked
+export type Relationship = Relation(Status, Person, Person, Place)
+
+relateFrom :: Relationship -> Place
+export relateFrom = where {
+  Relation(_, _, _, p) =>
+    p
+}
+
+relatee :: Relationship -> Person
+export relatee = where {
+  Relation(_, a, _, _) =>
+    a
+}
+
+relater :: Relationship -> Person
+export relater = where {
+  Relation(_, _, b, _) =>
+    b
+}
+
+relationStatus :: Relationship -> Status
+export relationStatus = where {
+  Relation(x, _, _, _) =>
+    x
+}
+
+export acquaint = Relation(Known)
+export vaguelyAcquaint = acquaint($, $, Somewhere)
