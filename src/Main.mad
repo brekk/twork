@@ -1,0 +1,74 @@
+import IO from "IO"
+
+
+
+// a little Person
+export type Person
+  = Person(String)
+  // a lethal Poison
+  | Ghost(String)
+
+export type Status = Likes | Known | Disliked | Unknown
+
+export type Place
+  = Place(
+    // id
+    String,
+    // name
+    String,
+  )
+  // I know X from Somewhere
+  | Somewhere
+
+concretePlace :: Place -> String
+concretePlace = where {
+  Place(_, n) =>
+    n
+
+  _ =>
+    "somewhere"
+}
+
+// e.g. A knows B from F and their shared status is Liked
+export type Relationship = Relation(Status, Person, Person, Place)
+
+relateFrom :: Relationship -> Place
+relateFrom = where {
+  Relation(_, _, _, p) =>
+    p
+}
+
+relatee :: Relationship -> Person
+relatee = where {
+  Relation(_, a, _, _) =>
+    a
+}
+
+related :: Relationship -> Person
+related = where {
+  Relation(_, _, b, _) =>
+    b
+}
+
+relationStatus :: Relationship -> Status
+relationStatus = where {
+  Relation(x, _, _, _) =>
+    x
+}
+
+acquaint = Relation(Known)
+vaguelyAcquaint = acquaint($, $, Somewhere)
+
+main = () => {
+  brekk = Person("brekk")
+  angelo = Person("angelo")
+
+  pipe(
+    vaguelyAcquaint(brekk),
+    IO.pTrace("Some people know some people?"),
+    relateFrom,
+    concretePlace,
+    (x) => "The relationship arose from: " ++ x,
+    IO.pTrace("output"),
+  )(angelo)
+}
