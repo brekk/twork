@@ -96,7 +96,7 @@ DEFAULT_CONFIG = { useDamerau: true, weights: { delete: 1, insert: 1, substitute
 */
 
 
-xy :: Integer -> Integer -> List (List a) -> Maybe a
+// xy :: Integer -> Integer -> List (List (Maybe a)) -> Maybe a
 xy = (x, y, mStr) => pipe(
   List.nth(x),
   chain(List.nth(y)),
@@ -165,7 +165,11 @@ processDistanceGrid = (config, a, b, raw) => {
 }
 */
 
-// handle :: DistanceConfig -> String -> String -> List (List Float) -> List (List Float)
+// handle :: DistanceConfig
+//   -> String
+//   -> String
+//   -> List (List (Maybe Float))
+//   -> List (List (Maybe Float))
 handle = (config, a, b, raw) => {
   i = 1
   j = 1
@@ -194,9 +198,6 @@ handle = (config, a, b, raw) => {
 
         #[Just(t), Just(u)] =>
           Just(t < u ? t : u)
-
-        _ =>
-          Nothing
       },
       Nothing,
       [delCost, insCost, subCost],
@@ -234,11 +235,18 @@ export distanceWithConfig = (config, a, b) => {
     map(log.detail(">>>")),
     // it's now initialized
     // processDistanceGrid(config, a, b),
-    handle(config, a, b),
+    // handle(config, a, b),
+    (raw) => List.mapWithIndex(
+      (xs, x) => pipe(
+        IO.pTrace("____"),
+        List.mapWithIndex((v, y) => IO.pTrace("(" ++ show(x) ++ ", " ++ show(y) ++ ")", v)),
+      )(xs),
+    )(raw),
   )(lenX)
 
   IO.pTrace("BOX O NUNS", boxOfNone)
   // }
+  return boxOfNone
 }
 /*
 // processDistanceGrid(config, a, b),
