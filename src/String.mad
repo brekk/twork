@@ -41,7 +41,7 @@ export distanceWithConfig = (config, a, b) => {
           Integer.toByte,
           Math.add(1_b),
           List.range(0_b),
-          map((y) => x == 0 ? y : y == 0 ? x : x),
+          map((y) => x == 0 ? y : y == 0 ? x : 0),
           ByteArray.fromList,
         )(lenY),
       ),
@@ -49,11 +49,10 @@ export distanceWithConfig = (config, a, b) => {
     )(lenX)
     i = 1
     j = 1
-    IO.pTrace("HOH", table)
 
     while(i <= lenX) do {
       while(j <= lenY) do {
-        IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", table)
+        // IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", table)
         _prevA = String.charAt(i - 1, a)
         _prevB = String.charAt(j - 1, b)
         _subCost = _prevA == _prevB ? 0 : config.weights.substitute
@@ -77,10 +76,31 @@ export distanceWithConfig = (config, a, b) => {
             ? (delCost < subCost ? delCost : subCost)
             : subCost < insCost ? subCost : insCost
         )
+        min = if (config.useDamerau) do {
+          _prevA2 = String.charAt(i - 2, a)
+          _prevB2 = String.charAt(j - 2, b)
+          return if (i > 1 && j > 1 && _prevA == _prevB2 && _prevA2 == _prevB) do {
+            transCost = pipe(
+              Array.unsafeAt(i - 2),
+              ByteArray.unsafeAt(j - 2),
+            )(table)
+              + _subCost
+            return if (transCost < least) {
+              transCost
+            } else {
+              least
+            }
+          } else {
+            least
+          }
+        } else {
+          least
+        }
+
         pipe(
           Array.unsafeAt(i),
           (row) => do {
-            ByteArray.unsafeSet(j, least, row)
+            ByteArray.unsafeSet(j, min, row)
             Array.unsafeSet(i, row, table)
           },
         )(table)
@@ -89,13 +109,12 @@ export distanceWithConfig = (config, a, b) => {
       i := i + 1
       j := 1
     }
-    IO.pTrace("TABULAR", table)
-    // }
     return pipe(
       Array.unsafeAt(lenX),
       ByteArray.unsafeAt(lenY),
     )(table)
   }
 }
+
 
 export distance = distanceWithConfig(DEFAULT_CONFIG)
