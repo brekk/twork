@@ -102,68 +102,81 @@ xy = (x, y, mStr) => pipe(
   chain(List.nth(y)),
 )(mStr)
 
-calcDelCost :: Integer -> Integer -> Float -> List (List Float) -> Maybe Float
+// calcDelCost :: Integer -> Integer -> Float -> List (List Float) -> Maybe Float
 calcDelCost = (i, j, w, raw) => pipe(
   xy(i - 1, j),
-  map(Math.add(w)),
+  chain(map(Math.add(w))),
 )(raw)
 
+// List.mapWithIndex((y, n) => (i == m && j == n ? newVal : y), x),
+setXY :: Integer -> Integer -> a -> List (List a) -> List (List a)
+setXY = (i, j, newVal, raw) => {
+  jRow = List.nth(i, raw)
+  // return List.set(i, List.set(j, newVal, row), raw)
+  return where(jRow) {
+    Just(row) =>
+      List.set(i, List.set(j, newVal, row), raw)
 
+    Nothing =>
+      raw
+  }
+}
 
 handle :: DistanceConfig
   -> String
   -> String
   -> List (List (Maybe Float))
   -> List (List (Maybe Float))
-handle = (config, a, b, raw) => List.mapWithIndex(
-  (xs, i) => pipe(
-    IO.pTrace("____"),
-    List.mapWithIndex(
-      (_v, j) => where(_v) {
-        Just(v) =>
-          do {
-            sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
-            _subCost = sameStart ? 0 : config.weights.substitute
-            delCost = pipe(
-              xy(i - 1, j),
-              map(map(Math.add(config.weights.delete))),
-            )(raw)
+handle = (config, a, b, raw) => {
+  local = raw
+  return List.mapWithIndex(
+    (xs, i) => pipe(
+      IO.pTrace("____"),
+      List.mapWithIndex(
+        (_v, j) => where(_v) {
+          Just(v) =>
+            do {
+              sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
+              _subCost = sameStart ? 0 : config.weights.substitute
+              delCost = calcDelCost(i, j, config.weights.delete, raw)
 
-            insCost = pipe(
-              xy(i, j - 1),
-              map(map(Math.add(config.weights.insert))),
-            )(raw)
-            subCost = pipe(
-              xy(i - 1, j - 1),
-              map(map(Math.add(_subCost))),
-            )(raw)
+              insCost = pipe(
+                xy(i, j - 1),
+                chain(map(Math.add(config.weights.insert))),
+              )(raw)
+              subCost = pipe(
+                xy(i - 1, j - 1),
+                chain(map(Math.add(_subCost))),
+              )(raw)
 
-            // lowest = List.reduce(
-            //   (prev, x) => where(#[prev, x]) {
-            //     #[Nothing, t] =>
-            //       t
-            //
-            //     #[t, Nothing] =>
-            //       t
-            //
-            //     #[Just(t), Just(u)] =>
-            //       Just(t < u ? t : u)
-            //   },
-            //   Nothing,
-            //   [delCost, insCost, subCost],
-            // )
+              lowest = List.reduce(
+                (prev, x) => where(#[prev, x]) {
+                  #[Nothing, jT] =>
+                    jT
 
-            IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", { insCost, subCost, delCost })
-            return Just(v)
-          }
+                  #[jT, Nothing] =>
+                    jT
 
-        Nothing =>
-          Nothing
-      },
-    ),
-  )(xs),
-  raw,
-)
+                  #[Just(t), Just(u)] =>
+                    Just(t < u ? t : u)
+                },
+                Nothing,
+                [delCost, insCost, subCost],
+              )
+              local := setXY(i, j, lowest, local)
+              IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", lowest)
+              return lowest
+            }
+
+          Nothing =>
+            Nothing
+        },
+      ),
+      IO.pTrace("OUTOUT"),
+    )(xs),
+    local,
+  )
+}
 
 /*
 
