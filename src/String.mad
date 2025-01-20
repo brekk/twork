@@ -1,5 +1,6 @@
 import type { Maybe } from "Maybe"
 
+import Array from "Array"
 import ByteArray from "ByteArray"
 import Float from "Float"
 import { always } from "Function"
@@ -44,6 +45,7 @@ export distanceWithConfig = (config, a, b) => {
           ByteArray.fromList,
         )(lenY),
       ),
+      Array.fromList,
     )(lenX)
     i = 1
     j = 1
@@ -55,77 +57,45 @@ export distanceWithConfig = (config, a, b) => {
         _prevA = String.charAt(i - 1, a)
         _prevB = String.charAt(j - 1, b)
         _subCost = _prevA == _prevB ? 0 : config.weights.substitute
-        prevRow = List.nth(i - 1, table)
-        at = (x) => map(ByteArray.unsafeAt(x))
+        prevRow = Array.unsafeAt(i - 1, table)
+        at = ByteArray.unsafeAt
         delCost = pipe(
           at(j),
-          map(Math.add(config.weights.substitute)),
+          Math.add(config.weights.substitute),
         )(prevRow)
         insCost = pipe(
-          List.nth(i),
+          Array.unsafeAt(i),
           at(j - 1),
-          map(Math.add(config.weights.insert)),
+          Math.add(config.weights.insert),
         )(table)
         subCost = pipe(
           at(j - 1),
-          map(Math.add(_subCost)),
+          Math.add(_subCost),
         )(prevRow)
-        least = List.reduce(
-          (prev, curr) => where(#[prev, curr]) {
-            #[Just(t), Just(u)] =>
-              Just(t < u ? t : u)
-
-            #[Just(t), Nothing] =>
-              Just(t)
-
-            #[Nothing, Just(u)] =>
-              Just(u)
-
-            _ =>
-              Nothing
-          },
-          Nothing,
-          [delCost, insCost, subCost],
+        least = (
+          delCost < insCost
+            ? (delCost < subCost ? delCost : subCost)
+            : subCost < insCost ? subCost : insCost
         )
-        // IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", { least: fromMaybe(0_b, least) })
         pipe(
-          List.nth(i),
-          map(
-            (row) => do {
-              ByteArray.unsafeSet(j, fromMaybe(0_b, least), row)
-              setRow = List.set(i, row, table)
-              // table := setRow
-            },
-          ),
+          Array.unsafeAt(i),
+          (row) => do {
+            ByteArray.unsafeSet(j, least, row)
+            Array.unsafeSet(i, row, table)
+          },
         )(table)
         j := j + 1
       }
       i := i + 1
-      j := 0
+      j := 1
     }
-    /* 
-            ======= FINAL =======
-            0|1|2|3|4|5
-            1|1|2|3|4|5
-            2|2|2|3|4|5
-            3|3|2|3|4|5
-            4|4|3|2|3|4
-            5|5|4|3|2|3
-            6|6|5|4|3|2
-            */
-
     IO.pTrace("TABULAR", table)
     // }
     return pipe(
-      List.nth(lenX),
-      map(ByteArray.unsafeAt(lenY)),
-      fromMaybe(0_b),
+      Array.unsafeAt(lenX),
+      ByteArray.unsafeAt(lenY),
     )(table)
   }
 }
-/*
-// List.nth(lenA),
-// chain(List.nth(lenB)),
-*/
 
 export distance = distanceWithConfig(DEFAULT_CONFIG)
