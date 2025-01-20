@@ -1,5 +1,6 @@
 import type { Maybe } from "Maybe"
 
+import ByteArray from "ByteArray"
 import Float from "Float"
 import { always } from "Function"
 import IO from "IO"
@@ -15,253 +16,114 @@ import { log } from "@/Log"
 
 alias DistanceConfig = {
   useDamerau :: Boolean,
-  weights :: { delete :: Float, insert :: Float, substitute :: Float },
+  weights :: { delete :: Byte, insert :: Byte, substitute :: Byte },
 }
 
-DEFAULT_CONFIG = { useDamerau: true, weights: { delete: 1, insert: 1, substitute: 1 } }
-
-/*
-======= INITIAL =======
-012345
-1
-2
-3
-4
-5
-6
-======= FIRST PASS =======
-012345
-11
-2
-3
-4
-5
-6
-======= FRAME: 1 =======
-012345
-112345
-2
-3
-4
-5
-6
-======= FRAME: 2 =======
-012345
-112345
-222345
-3
-4
-5
-6
-======= FRAME: 3 =======
-012345
-112345
-222345
-332345
-4
-5
-6
-======= FRAME: 4 =======
-012345
-112345
-222345
-332345
-443234
-5
-6
-======= FRAME: 5 =======
-012345
-112345
-222345
-332345
-443234
-554323
-6
-======= FRAME: 6 =======
-012345
-112345
-222345
-332345
-443234
-554323
-665432
-======= FINAL =======
-012345
-112345
-222345
-332345
-443234
-554323
-665432
-*/
-
-
-xy :: Integer -> Integer -> List (List a) -> Maybe a
-xy = (x, y, mStr) => pipe(
-  List.nth(x),
-  chain(List.nth(y)),
-)(mStr)
-
-// calcDelCost :: Integer -> Integer -> Float -> List (List Float) -> Maybe Float
-calcDelCost = (i, j, w, raw) => pipe(
-  xy(i - 1, j),
-  chain(map(Math.add(w))),
-)(raw)
-
-// List.mapWithIndex((y, n) => (i == m && j == n ? newVal : y), x),
-setXY :: Integer -> Integer -> a -> List (List a) -> List (List a)
-setXY = (i, j, newVal, raw) => {
-  jRow = List.nth(i, raw)
-  // return List.set(i, List.set(j, newVal, row), raw)
-  return where(jRow) {
-    Just(row) =>
-      List.set(i, List.set(j, newVal, row), raw)
-
-    Nothing =>
-      raw
-  }
-}
-
-handle :: DistanceConfig
-  -> String
-  -> String
-  -> List (List (Maybe Float))
-  -> List (List (Maybe Float))
-handle = (config, a, b, raw) => {
-  local = raw
-  return List.mapWithIndex(
-    (xs, i) => pipe(
-      IO.pTrace("____"),
-      List.mapWithIndex(
-        (_v, j) => where(_v) {
-          Just(v) =>
-            do {
-              sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
-              _subCost = sameStart ? 0 : config.weights.substitute
-              delCost = calcDelCost(i, j, config.weights.delete, raw)
-
-              insCost = pipe(
-                xy(i, j - 1),
-                chain(map(Math.add(config.weights.insert))),
-              )(raw)
-              subCost = pipe(
-                xy(i - 1, j - 1),
-                chain(map(Math.add(_subCost))),
-              )(raw)
-
-              lowest = List.reduce(
-                (prev, x) => where(#[prev, x]) {
-                  #[Nothing, jT] =>
-                    jT
-
-                  #[jT, Nothing] =>
-                    jT
-
-                  #[Just(t), Just(u)] =>
-                    Just(t < u ? t : u)
-                },
-                Nothing,
-                [delCost, insCost, subCost],
-              )
-              local := setXY(i, j, lowest, local)
-              IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", lowest)
-              return lowest
-            }
-
-          Nothing =>
-            Nothing
-        },
-      ),
-      IO.pTrace("OUTOUT"),
-    )(xs),
-    local,
-  )
-}
-
-/*
-
-
-return List.mapWithIndex(
-  (xs, i) => pipe(
-    IO.pTrace("____"),
-    List.mapWithIndex(
-      (_v, j) => where(_v) {
-        Just(v) =>
-          do {
-            sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
-            _subCost = sameStart ? 0 : config.weights.substitute
-            delCost = pipe(
-              xy(i - 1, j),
-              map(Math.add(config.weights.delete)),
-            )(raw)
-            insCost = pipe(
-              xy(i, j - 1),
-              map(Math.add(config.weights.insert)),
-            )(raw)
-            subCost = pipe(
-              xy(i - 1, j - 1),
-              map(Math.add(_subCost)),
-            )(raw)
-            lowest = List.reduce(
-              (prev, x) => where(#[prev, x]) {
-                #[Nothing, t] =>
-                  t
-
-                #[t, Nothing] =>
-                  t
-
-                #[Just(t), Just(u)] =>
-                  Just(t < u ? t : u)
-              },
-              Nothing,
-              [delCost, insCost, subCost],
-            )
-
-            IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", lowest)
-            return v
-          }
-
-        Nothing =>
-          Nothing
-      },
-    ),
-  )(xs),
-)(raw)
-*/
+DEFAULT_CONFIG = { useDamerau: true, weights: { delete: 1_b, insert: 1_b, substitute: 1_b } }
 
 
 // distanceWithConfig :: DistanceConfig -> String -> String -> List (List (Maybe Float))
 export distanceWithConfig = (config, a, b) => {
   lenX = String.length(a)
   lenY = String.length(b)
-  // return if (lenA == 0) {
-  //   [[Just(Integer.toFloat(lenB) * config.weights.insert)]]
-  // } else if (lenB == 0) {
-  //   [[Just(Integer.toFloat(lenA) * config.weights.delete)]]
-  // } else do {
-  boxOfNone = pipe(
-    Math.add(1),
-    Float.fromInteger,
-    List.range(0),
-    map(
-      (x) => pipe(
-        Math.add(1),
-        Float.fromInteger,
-        List.range(0),
-        map((y) => x == 0 ? Just(y) : y == 0 ? Just(x) : Nothing),
-      )(lenY),
-    ),
-    IO.pTrace("INITIALIZED"),
-    // it's now initialized
-    handle(config, a, b),
-  )(lenX)
+  return if (lenX == 0) {
+    Integer.toByte(lenY) * config.weights.insert
+  } else if (lenY == 0) {
+    Integer.toByte(lenX) * config.weights.delete
+  } else do {
+    table = pipe(
+      Integer.toByte,
+      Math.add(1_b),
+      List.range(0_b),
+      map(
+        (x) => pipe(
+          Integer.toByte,
+          Math.add(1_b),
+          List.range(0_b),
+          map((y) => x == 0 ? y : y == 0 ? x : x),
+          ByteArray.fromList,
+        )(lenY),
+      ),
+    )(lenX)
+    i = 1
+    j = 1
+    IO.pTrace("HOH", table)
 
-  IO.pTrace("BOX O NUNS", boxOfNone)
-  // }
-  return boxOfNone
+    while(i <= lenX) do {
+      while(j <= lenY) do {
+        IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", table)
+        _prevA = String.charAt(i - 1, a)
+        _prevB = String.charAt(j - 1, b)
+        _subCost = _prevA == _prevB ? 0 : config.weights.substitute
+        prevRow = List.nth(i - 1, table)
+        at = (x) => map(ByteArray.unsafeAt(x))
+        delCost = pipe(
+          at(j),
+          map(Math.add(config.weights.substitute)),
+        )(prevRow)
+        insCost = pipe(
+          List.nth(i),
+          at(j - 1),
+          map(Math.add(config.weights.insert)),
+        )(table)
+        subCost = pipe(
+          at(j - 1),
+          map(Math.add(_subCost)),
+        )(prevRow)
+        least = List.reduce(
+          (prev, curr) => where(#[prev, curr]) {
+            #[Just(t), Just(u)] =>
+              Just(t < u ? t : u)
+
+            #[Just(t), Nothing] =>
+              Just(t)
+
+            #[Nothing, Just(u)] =>
+              Just(u)
+
+            _ =>
+              Nothing
+          },
+          Nothing,
+          [delCost, insCost, subCost],
+        )
+        // IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", { least: fromMaybe(0_b, least) })
+        pipe(
+          List.nth(i),
+          map(
+            (row) => do {
+              ByteArray.unsafeSet(j, fromMaybe(0_b, least), row)
+              setRow = List.set(i, row, table)
+              // table := setRow
+            },
+          ),
+        )(table)
+        j := j + 1
+      }
+      i := i + 1
+      j := 0
+    }
+    /* 
+            ======= FINAL =======
+            0|1|2|3|4|5
+            1|1|2|3|4|5
+            2|2|2|3|4|5
+            3|3|2|3|4|5
+            4|4|3|2|3|4
+            5|5|4|3|2|3
+            6|6|5|4|3|2
+            */
+
+    IO.pTrace("TABULAR", table)
+    // }
+    return pipe(
+      List.nth(lenX),
+      map(ByteArray.unsafeAt(lenY)),
+      fromMaybe(0_b),
+    )(table)
+  }
 }
 /*
-// processDistanceGrid(config, a, b),
 // List.nth(lenA),
 // chain(List.nth(lenB)),
 */
