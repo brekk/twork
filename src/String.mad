@@ -1,0 +1,249 @@
+import type { Maybe } from "Maybe"
+
+import Float from "Float"
+import { always } from "Function"
+import IO from "IO"
+import Integer from "Integer"
+import List from "List"
+import Math from "Math"
+import { Just, Nothing, fromMaybe } from "Maybe"
+import String from "String"
+
+import { log } from "@/Log"
+
+
+
+alias DistanceConfig = {
+  useDamerau :: Boolean,
+  weights :: { delete :: Float, insert :: Float, substitute :: Float },
+}
+
+DEFAULT_CONFIG = { useDamerau: true, weights: { delete: 1, insert: 1, substitute: 1 } }
+
+/*
+======= INITIAL =======
+012345
+1
+2
+3
+4
+5
+6
+======= FIRST PASS =======
+012345
+11
+2
+3
+4
+5
+6
+======= FRAME: 1 =======
+012345
+112345
+2
+3
+4
+5
+6
+======= FRAME: 2 =======
+012345
+112345
+222345
+3
+4
+5
+6
+======= FRAME: 3 =======
+012345
+112345
+222345
+332345
+4
+5
+6
+======= FRAME: 4 =======
+012345
+112345
+222345
+332345
+443234
+5
+6
+======= FRAME: 5 =======
+012345
+112345
+222345
+332345
+443234
+554323
+6
+======= FRAME: 6 =======
+012345
+112345
+222345
+332345
+443234
+554323
+665432
+======= FINAL =======
+012345
+112345
+222345
+332345
+443234
+554323
+665432
+*/
+
+
+xy :: Integer -> Integer -> List (List a) -> Maybe a
+xy = (x, y, mStr) => pipe(
+  List.nth(x),
+  chain(List.nth(y)),
+)(mStr)
+
+
+
+/*
+processDistanceGrid = (config, a, b, raw) => {
+  lenA = String.length(a)
+  lenB = String.length(b)
+  return pipe(
+    List.range(1),
+    map(
+      (i) => pipe(
+        List.range(1),
+        map(
+          pipe(
+            (j) => {
+              log.info("ij", { i, j })
+              prevI = String.charAt(i - 1, a)
+              prevJ = String.charAt(j - 1, b)
+              _subCost = prevI == prevJ ? 0 : config.weights.substitute
+              ref = xy($, $, raw)
+              delCost = pipe(
+                ref(i - 1),
+                // log.detail("delc"),
+                map(Math.add(config.weights.delete)),
+              )(j)
+              insCost = pipe(
+                ref(i),
+                // log.detail("ins"),
+                map(Math.add(config.weights.insert)),
+              )(j - 1)
+              subCost = pipe(
+                ref(i - 1),
+                // map(log.detail("sub")),
+                map(Math.add(_subCost)),
+              )(j - 1)
+              log.detail("costies", { delCost, insCost, subCost })
+              least = List.reduce(
+                (m, n) => where(#[m, n]) {
+                  #[Just(_a), Just(_b)] =>
+                    Just(_b < _a ? _b : _a)
+
+                  #[Just(_a), Nothing] =>
+                    Just(_a)
+
+                  #[Nothing, Just(_b)] =>
+                    Just(_b)
+
+                  _ =>
+                    Nothing
+                },
+                Nothing,
+                [delCost, insCost, subCost],
+              )
+              return least
+            },
+            IO.pTrace("postCost"),
+          ),
+        ),
+      )(lenB),
+    ),
+  )(lenA)
+}
+*/
+
+// handle :: DistanceConfig -> String -> String -> List (List Float) -> List (List Float)
+handle = (config, a, b, raw) => {
+  i = 1
+  j = 1
+  while(i <= String.length(a) && j <= String.length(b)) do {
+    sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
+    _subCost = sameStart ? 0 : config.weights.substitute
+    delCost = pipe(
+      xy(i - 1, j),
+      map(Math.add(config.weights.delete)),
+    )(raw)
+    insCost = pipe(
+      xy(i, j - 1),
+      map(Math.add(config.weights.insert)),
+    )(raw)
+    subCost = pipe(
+      xy(i - 1, j - 1),
+      map(Math.add(_subCost)),
+    )(raw)
+    lowest = List.reduce(
+      (prev, x) => where(#[prev, x]) {
+        #[Nothing, t] =>
+          t
+
+        #[t, Nothing] =>
+          t
+
+        #[Just(t), Just(u)] =>
+          Just(t < u ? t : u)
+
+        _ =>
+          Nothing
+      },
+      Nothing,
+      [delCost, insCost, subCost],
+    )
+
+    log.detail(show(i) ++ " x " ++ show(j), { lowest })
+    i := i + 1
+    j := j + 1
+  }
+  return raw
+}
+
+
+// distanceWithConfig :: DistanceConfig -> String -> String -> List (List (Maybe Float))
+export distanceWithConfig = (config, a, b) => {
+  lenX = String.length(a)
+  lenY = String.length(b)
+  // return if (lenA == 0) {
+  //   [[Just(Integer.toFloat(lenB) * config.weights.insert)]]
+  // } else if (lenB == 0) {
+  //   [[Just(Integer.toFloat(lenA) * config.weights.delete)]]
+  // } else do {
+  boxOfNone = pipe(
+    Math.add(1),
+    Float.fromInteger,
+    List.range(0),
+    map(
+      (x) => pipe(
+        Math.add(1),
+        Float.fromInteger,
+        List.range(0),
+        map((y) => x == 0 ? Just(y) : y == 0 ? Just(x) : Nothing),
+      )(lenY),
+    ),
+    map(log.detail(">>>")),
+    // it's now initialized
+    // processDistanceGrid(config, a, b),
+    handle(config, a, b),
+  )(lenX)
+
+  IO.pTrace("BOX O NUNS", boxOfNone)
+  // }
+}
+/*
+// processDistanceGrid(config, a, b),
+// List.nth(lenA),
+// chain(List.nth(lenB)),
+*/
+
+export distance = distanceWithConfig(DEFAULT_CONFIG)

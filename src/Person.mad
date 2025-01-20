@@ -1,7 +1,86 @@
+import type { Comparison } from "Compare"
+
+import { EQ, GT, LT } from "Compare"
+import {} from "Functor"
+
+
+
 // a little Person
 export type Person
   = Person(String)
   // a lethal Poison
   | Ghost(String)
 
-export type Status = Likes | Known | Disliked | Unknown
+derive Comparable Person
+
+export type Status = Likes | Known | Disliked | Banished | Unknown
+instance Comparable Status {
+  compare = compareStatus
+}
+
+// thinking here that if it's unknown or known, that proceeds as before
+// but if it's liked / banished, then +1
+// and disliked, -1
+compareStatus :: Status -> Status -> Comparison
+compareStatus = (a, b) => where(#[a, b]) {
+  #[Likes, Likes] =>
+    EQ
+
+  #[Likes, _] =>
+    GT
+
+  #[Known, Known] =>
+    EQ
+
+  #[Known, _] =>
+    EQ
+
+  #[Disliked, Disliked] =>
+    EQ
+
+  #[Disliked, _] =>
+    LT
+
+  #[Banished, Banished] =>
+    EQ
+
+  #[Banished, _] =>
+    LT
+
+  #[Unknown, Unknown] =>
+    EQ
+
+  #[Unknown, _] =>
+    EQ
+}
+
+// FIELDS
+
+name :: Person -> String
+export name = where {
+  Person(x) =>
+    x
+
+  Ghost(x) =>
+    x
+}
+
+// DERIVED
+
+isGhost :: Person -> Boolean
+export isGhost = where {
+  Person(_) =>
+    false
+
+  _ =>
+    true
+}
+
+isPerson :: Person -> Boolean
+export isPerson = where {
+  Person(_) =>
+    true
+
+  _ =>
+    false
+}

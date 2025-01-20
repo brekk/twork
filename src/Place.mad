@@ -1,3 +1,9 @@
+import type { Comparison } from "Compare"
+
+import { EQ, GT, LT } from "Compare"
+
+
+
 export type Place
   = Place(
     // id
@@ -7,6 +13,22 @@ export type Place
   )
   // I know X from Somewhere
   | Somewhere
+
+instance Comparable Place {
+  compare = comparePlace
+}
+
+comparePlace :: Place -> Place -> Comparison
+export comparePlace = (a, b) => where(#[a, b]) {
+  #[Place(m, n), Place(x, y)] =>
+    m == x ? EQ : n == y ? GT : LT
+
+  #[Place(_, _), _] =>
+    LT
+
+  #[Somewhere, _] =>
+    GT
+}
 
 concretePlace :: Place -> String
 export concretePlace = where {

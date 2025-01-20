@@ -1,6 +1,8 @@
 import type { Person, Status } from "@/Person"
 import type { Place } from "@/Place"
 
+import {} from "Compare"
+
 import { Known } from "@/Person"
 import { Somewhere } from "@/Place"
 
@@ -8,6 +10,8 @@ import { Somewhere } from "@/Place"
 
 // e.g. A knows B from F and their shared status is Liked
 export type Relationship = Relation(Status, Person, Person, Place)
+
+derive Comparable Relationship
 
 relateFrom :: Relationship -> Place
 export relateFrom = where {

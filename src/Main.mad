@@ -1,14 +1,42 @@
 import IO from "IO"
+import List from "List"
 
 import { Person } from "@/Person"
 import P from "@/Place"
 import R from "@/Relationship"
+import String from "@/String"
+import Tag from "@/Tag"
 
 
 
 main = () => {
   brekk = Person("brekk")
   angelo = Person("angelo")
+
+  rls = Tag.create(["slack", "rls"])
+  berlin = Tag.create(["city", "Berlin"])
+  fanland = Tag.create(["company", "Fanland"])
+
+  slack = Tag.create(["company", "Slack"])
+  sf = Tag.create(["city", "San Francisco"])
+
+  tartine = Tag.create(["company", "shop", "bakery", "Tartine"])
+  paxton = Tag.create(["shop", "exotic", "Paxton Gate"])
+
+  fp = Tag.create(["programming", "functional"])
+
+  sorted = List.sortBy(Tag.compareTag, [rls, berlin, fanland, slack, fp, sf, tartine, paxton])
+  IO.pTrace("SORTED", sorted)
+
+  pipe(
+    map(Tag.overlap(slack)),
+    IO.pTrace("overlappies with company:Slack"),
+  )([rls, berlin, fanland, fp, sf, tartine, paxton])
+
+  pipe(
+    String.distance($, "dippy"),
+    IO.pTrace("yo"),
+  )("skippy")
 
   pipe(
     R.vaguelyAcquaint(brekk),

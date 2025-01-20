@@ -1,0 +1,17 @@
+import { env, tagWithScope } from "PartyBus"
+
+
+
+export TAGS = {
+  info: tagWithScope("twork", ["info"]),
+  detail: tagWithScope("twork", ["detail"]),
+  string: tagWithScope("twork", ["string"]),
+  stringDistance: tagWithScope("twork", ["string", "distance"]),
+}
+
+export log = {
+  info: env(TAGS.info),
+  detail: env(TAGS.detail),
+  string: env(TAGS.string),
+  stringDistance: env(TAGS.stringDistance),
+}

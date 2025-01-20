@@ -1,0 +1,151 @@
+import type { Comparison } from "Compare"
+import type { Maybe } from "Maybe"
+
+import { EQ, GT, LT } from "Compare"
+import List from "List"
+import { Just, Nothing } from "Maybe"
+import { toLower } from "String"
+
+
+
+/*
+
+  Tags are non-empty caseless string lists: Tag(["shop", "bakery", "Tartine"])
+  
+  Each index is a Scope
+
+  The first Scope is the Root Scope
+  The last Scope is the Focus Scope
+
+  A Band is a Tag whose Root and Focus are the same value
+
+  Other tags are considered siblings if the given tags share a Root Scope
+
+  The overlap between Tags denotes their affinity
+
+  a. Tag(["shop", "bakery", "Tartine"])
+  b. Tag(["shop", "exotic", "Paxton Gate"])
+
+  These two tags have the same Band, "shop", and it's in the same place, so they have a stronger affinity than
+
+  c: Tag(["airport", "shop", "Peetz", "Drip Coffee"])
+
+  since `a` and `b` have the same Root and length, they have the same affinity to `c`
+
+*/
+
+lower = map(toLower)
+
+export type Tag = Tag(List String) | AnyTag | NoTag
+
+export create = pipe(
+  lower,
+  Tag,
+)
+export any = AnyTag
+export none = NoTag
+
+// INTRINSICS
+
+compareTag :: Tag -> Tag -> Comparison
+export compareTag = (a, b) => where(#[a, b]) {
+  #[Tag(x), Tag(y)] =>
+    EQ
+
+  #[AnyTag, _] =>
+    GT
+
+  #[_, AnyTag] =>
+    GT
+
+  #[NoTag, _] =>
+    LT
+
+  #[_, NoTag] =>
+    LT
+}
+
+// FIELDS
+
+scopes :: Tag -> Maybe (List String)
+export scopes = where {
+  Tag(x) =>
+    Just(x)
+
+  _ =>
+    Nothing
+}
+
+length :: Tag -> Integer
+export length = where {
+  Tag(x) =>
+    List.length(x)
+
+  NoTag =>
+    0
+
+  AnyTag =>
+    -1
+}
+
+root :: Tag -> Maybe String
+export root = pipe(
+  scopes,
+  chain(List.first),
+  lower,
+)
+
+focus :: Tag -> Maybe String
+export focus = pipe(
+  scopes,
+  chain(List.last),
+  lower,
+)
+
+// DERIVATIONS
+
+isBand :: Tag -> Boolean
+export isBand = where {
+  Tag(x) =>
+    List.length(x) == 1
+
+  _ =>
+    false
+}
+
+isSibling :: Tag -> Tag -> Boolean
+export isSibling = (a, b) => root(a) == root(b)
+
+overlap :: Tag -> Tag -> List String
+export overlap = (a, b) => where(#[a, b]) {
+  #[Tag(xs), Tag(ys)] =>
+    List.reduce((agg, y) => List.includes(y, xs) ? List.concat(agg, [y]) : agg, [], ys)
+
+  #[AnyTag, Tag(xs)] =>
+    xs
+
+  #[Tag(xs), AnyTag] =>
+    xs
+
+  _ =>
+    []
+}
+
+affinity :: Tag -> Tag -> Float
+affinity = (a, b) => {
+  rootA = root(a)
+  lengA = length(a)
+  scopA = scopes(a)
+  rootB = root(b)
+  lengB = length(b)
+  scopB = scopes(b)
+  return if (rootA == rootB) {
+    if (lengA == lengB) {
+      1
+    } else {
+      1
+    }
+  } else {
+    1
+  }
+}
