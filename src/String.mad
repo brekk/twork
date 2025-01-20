@@ -96,119 +96,125 @@ DEFAULT_CONFIG = { useDamerau: true, weights: { delete: 1, insert: 1, substitute
 */
 
 
-// xy :: Integer -> Integer -> List (List (Maybe a)) -> Maybe a
+xy :: Integer -> Integer -> List (List a) -> Maybe a
 xy = (x, y, mStr) => pipe(
   List.nth(x),
   chain(List.nth(y)),
 )(mStr)
 
+calcDelCost :: Integer -> Integer -> Float -> List (List Float) -> Maybe Float
+calcDelCost = (i, j, w, raw) => pipe(
+  xy(i - 1, j),
+  map(Math.add(w)),
+)(raw)
 
+
+
+handle :: DistanceConfig
+  -> String
+  -> String
+  -> List (List (Maybe Float))
+  -> List (List (Maybe Float))
+handle = (config, a, b, raw) => List.mapWithIndex(
+  (xs, i) => pipe(
+    IO.pTrace("____"),
+    List.mapWithIndex(
+      (_v, j) => where(_v) {
+        Just(v) =>
+          do {
+            sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
+            _subCost = sameStart ? 0 : config.weights.substitute
+            delCost = pipe(
+              xy(i - 1, j),
+              map(map(Math.add(config.weights.delete))),
+            )(raw)
+
+            insCost = pipe(
+              xy(i, j - 1),
+              map(map(Math.add(config.weights.insert))),
+            )(raw)
+            subCost = pipe(
+              xy(i - 1, j - 1),
+              map(map(Math.add(_subCost))),
+            )(raw)
+
+            // lowest = List.reduce(
+            //   (prev, x) => where(#[prev, x]) {
+            //     #[Nothing, t] =>
+            //       t
+            //
+            //     #[t, Nothing] =>
+            //       t
+            //
+            //     #[Just(t), Just(u)] =>
+            //       Just(t < u ? t : u)
+            //   },
+            //   Nothing,
+            //   [delCost, insCost, subCost],
+            // )
+
+            IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", { insCost, subCost, delCost })
+            return Just(v)
+          }
+
+        Nothing =>
+          Nothing
+      },
+    ),
+  )(xs),
+  raw,
+)
 
 /*
-processDistanceGrid = (config, a, b, raw) => {
-  lenA = String.length(a)
-  lenB = String.length(b)
-  return pipe(
-    List.range(1),
-    map(
-      (i) => pipe(
-        List.range(1),
-        map(
-          pipe(
-            (j) => {
-              log.info("ij", { i, j })
-              prevI = String.charAt(i - 1, a)
-              prevJ = String.charAt(j - 1, b)
-              _subCost = prevI == prevJ ? 0 : config.weights.substitute
-              ref = xy($, $, raw)
-              delCost = pipe(
-                ref(i - 1),
-                // log.detail("delc"),
-                map(Math.add(config.weights.delete)),
-              )(j)
-              insCost = pipe(
-                ref(i),
-                // log.detail("ins"),
-                map(Math.add(config.weights.insert)),
-              )(j - 1)
-              subCost = pipe(
-                ref(i - 1),
-                // map(log.detail("sub")),
-                map(Math.add(_subCost)),
-              )(j - 1)
-              log.detail("costies", { delCost, insCost, subCost })
-              least = List.reduce(
-                (m, n) => where(#[m, n]) {
-                  #[Just(_a), Just(_b)] =>
-                    Just(_b < _a ? _b : _a)
 
-                  #[Just(_a), Nothing] =>
-                    Just(_a)
 
-                  #[Nothing, Just(_b)] =>
-                    Just(_b)
+return List.mapWithIndex(
+  (xs, i) => pipe(
+    IO.pTrace("____"),
+    List.mapWithIndex(
+      (_v, j) => where(_v) {
+        Just(v) =>
+          do {
+            sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
+            _subCost = sameStart ? 0 : config.weights.substitute
+            delCost = pipe(
+              xy(i - 1, j),
+              map(Math.add(config.weights.delete)),
+            )(raw)
+            insCost = pipe(
+              xy(i, j - 1),
+              map(Math.add(config.weights.insert)),
+            )(raw)
+            subCost = pipe(
+              xy(i - 1, j - 1),
+              map(Math.add(_subCost)),
+            )(raw)
+            lowest = List.reduce(
+              (prev, x) => where(#[prev, x]) {
+                #[Nothing, t] =>
+                  t
 
-                  _ =>
-                    Nothing
-                },
-                Nothing,
-                [delCost, insCost, subCost],
-              )
-              return least
-            },
-            IO.pTrace("postCost"),
-          ),
-        ),
-      )(lenB),
-    ),
-  )(lenA)
-}
-*/
+                #[t, Nothing] =>
+                  t
 
-// handle :: DistanceConfig
-//   -> String
-//   -> String
-//   -> List (List (Maybe Float))
-//   -> List (List (Maybe Float))
-handle = (config, a, b, raw) => {
-  i = 1
-  j = 1
-  while(i <= String.length(a) && j <= String.length(b)) do {
-    sameStart = String.charAt(i - 1, a) == String.charAt(j - 1, b)
-    _subCost = sameStart ? 0 : config.weights.substitute
-    delCost = pipe(
-      xy(i - 1, j),
-      map(Math.add(config.weights.delete)),
-    )(raw)
-    insCost = pipe(
-      xy(i, j - 1),
-      map(Math.add(config.weights.insert)),
-    )(raw)
-    subCost = pipe(
-      xy(i - 1, j - 1),
-      map(Math.add(_subCost)),
-    )(raw)
-    lowest = List.reduce(
-      (prev, x) => where(#[prev, x]) {
-        #[Nothing, t] =>
-          t
+                #[Just(t), Just(u)] =>
+                  Just(t < u ? t : u)
+              },
+              Nothing,
+              [delCost, insCost, subCost],
+            )
 
-        #[t, Nothing] =>
-          t
+            IO.pTrace("(" ++ show(i) ++ ", " ++ show(j) ++ ")", lowest)
+            return v
+          }
 
-        #[Just(t), Just(u)] =>
-          Just(t < u ? t : u)
+        Nothing =>
+          Nothing
       },
-      Nothing,
-      [delCost, insCost, subCost],
-    )
-
-    log.detail(show(i) ++ " x " ++ show(j), { lowest })
-    i := i + 1
-    j := j + 1
-  }
-  return raw
-}
+    ),
+  )(xs),
+)(raw)
+*/
 
 
 // distanceWithConfig :: DistanceConfig -> String -> String -> List (List (Maybe Float))
@@ -232,16 +238,9 @@ export distanceWithConfig = (config, a, b) => {
         map((y) => x == 0 ? Just(y) : y == 0 ? Just(x) : Nothing),
       )(lenY),
     ),
-    map(log.detail(">>>")),
+    IO.pTrace("INITIALIZED"),
     // it's now initialized
-    // processDistanceGrid(config, a, b),
-    // handle(config, a, b),
-    (raw) => List.mapWithIndex(
-      (xs, x) => pipe(
-        IO.pTrace("____"),
-        List.mapWithIndex((v, y) => IO.pTrace("(" ++ show(x) ++ ", " ++ show(y) ++ ")", v)),
-      )(xs),
-    )(raw),
+    handle(config, a, b),
   )(lenX)
 
   IO.pTrace("BOX O NUNS", boxOfNone)
