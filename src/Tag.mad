@@ -1,8 +1,16 @@
 import type { Comparison } from "Compare"
+import type { Either } from "Either"
 import type { Maybe } from "Maybe"
 
+import { liftA2 } from "Applicative"
 import { EQ, GT, LT } from "Compare"
+import { Left, Right, fromRight, isRight } from "Either"
+import Float from "Float"
+import { always, ifElse } from "Function"
+import IO from "IO"
 import List from "List"
+import Math from "Math"
+import { fromMaybe } from "Maybe"
 import { Just, Nothing } from "Maybe"
 import { toLower } from "String"
 
@@ -50,7 +58,18 @@ export none = NoTag
 compareTag :: Tag -> Tag -> Comparison
 export compareTag = (a, b) => where(#[a, b]) {
   #[Tag(x), Tag(y)] =>
-    EQ
+    do {
+      rA = root(a)
+      rB = root(b)
+      return if (rA == rB) {
+        affinity(a, b) > 0.5 ? EQ : LT
+      } else {
+        x < y ? LT : GT
+      }
+      // IO.pTrace("XY", { x, y })
+      // aff = affinity(a, b)
+      // return root(a) == root(b) ? x < y ? LT : GT : aff >= 0.25 ? x >= y ? GT : LT : GT
+    }
 
   #[AnyTag, _] =>
     GT
@@ -63,6 +82,10 @@ export compareTag = (a, b) => where(#[a, b]) {
 
   #[_, NoTag] =>
     LT
+}
+
+instance Comparable Tag {
+  compare = compareTag
 }
 
 // FIELDS
@@ -119,7 +142,7 @@ export isSibling = (a, b) => root(a) == root(b)
 overlap :: Tag -> Tag -> List String
 export overlap = (a, b) => where(#[a, b]) {
   #[Tag(xs), Tag(ys)] =>
-    List.reduce((agg, y) => List.includes(y, xs) ? List.concat(agg, [y]) : agg, [], ys)
+    List.reduce((agg, y) => List.includes(y, xs) ? List.append(y, agg) : agg, [], ys)
 
   #[AnyTag, Tag(xs)] =>
     xs
@@ -131,21 +154,164 @@ export overlap = (a, b) => where(#[a, b]) {
     []
 }
 
+alias ContiguousCheck = { list :: List String, valid :: Boolean }
+
+_contiguous :: Tag -> Tag -> ContiguousCheck
+_contiguous = (a, b) => where(#[a, b]) {
+  #[Tag(xs), Tag(ys)] =>
+    List.reduce(
+      (agg, y) => if (agg.valid && List.includes(y, xs)) {
+        { valid: true, list: List.concat(agg.list, [y]) }
+      } else {
+        agg
+      },
+      { valid: true, list: [] },
+      ys,
+    )
+
+  #[AnyTag, Tag(xs)] =>
+    ({ list: xs, valid: true })
+
+  #[Tag(xs), AnyTag] =>
+    ({ list: xs, valid: true })
+
+  _ =>
+    ({ list: [], valid: false })
+}
+
+__contiguous :: Tag -> Tag -> Either (List String) (List String)
+__contiguous = (a, b) => where(#[a, b]) {
+  #[Tag(xs), Tag(ys)] =>
+    List.reduce(
+      (_stack, i) => where(_stack) {
+        Right(stack) =>
+          List.includes(i, xs) ? Right(List.append(i, stack)) : Left(stack)
+
+        Left(x) =>
+          Left(x)
+      },
+      Right([]),
+      ys,
+    )
+}
+
+isContiguous :: Tag -> Tag -> Boolean
+export isContiguous = (a, b) => pipe(
+  __contiguous(a),
+  isRight,
+)(b)
+
+contiguousOverlap :: Tag -> Tag -> Maybe (List String)
+export contiguousOverlap = (a, b) => pipe(
+  __contiguous(a),
+  where {
+    Left(x) =>
+      Just(x)
+
+    Right(x) =>
+      Just(x)
+  },
+)(b)
+
+connect :: Tag -> Tag -> Maybe Tag
+export connect = (a, b) => pipe(
+  _contiguous(a),
+  where {
+    { list, valid } =>
+      where(#[a, b]) {
+        #[Tag(ax), Tag(bx)] =>
+          do {
+            l = List.length(list)
+            return pipe(
+              List.dropLast(l),
+              List.concat($, list),
+              List.concat($, List.drop(l, bx)),
+              Tag,
+              Just,
+            )(ax)
+          }
+
+        #[AnyTag, Tag(bx)] =>
+          pipe(
+            Tag,
+            Just,
+          )(bx)
+
+        #[Tag(ax), AnyTag] =>
+          pipe(
+            Tag,
+            Just,
+          )(ax)
+
+        _ =>
+          Nothing
+      }
+  },
+)(b)
+
+// compare two tags, 
+// m: Tag([wow, cool, software])
+// n: Tag([software, Madlib])
+isLeftConnected :: Tag -> Tag -> Boolean
+export isLeftConnected = (a, b) => pipe(
+  where {
+    #[Tag(xs), Tag(ys)] =>
+      do {
+        x <- List.last(xs)
+        y <- List.first(ys)
+        return of(x == y)
+      }
+
+    #[AnyTag, _] =>
+      of(true)
+
+    #[_, AnyTag] =>
+      of(true)
+
+    _ =>
+      of(false)
+  },
+  fromMaybe(false),
+)(#[a, b])
+
+isRightConnected :: Tag -> Tag -> Boolean
+export isRightConnected = (a, b) => isLeftConnected(b, a)
+
+contains :: Tag -> Tag -> Boolean
+export contains = (a, b) => where(#[a, b]) {
+  #[Tag(xs), Tag(ys)] =>
+    pipe(
+      List.reduce((valid, y) => valid && List.includes(y, xs), true),
+    )(ys)
+
+  #[AnyTag, _] =>
+    true
+
+  #[_, AnyTag] =>
+    true
+
+  #[NoTag, _] =>
+    false
+
+  #[_, NoTag] =>
+    false
+}
+
 affinity :: Tag -> Tag -> Float
-affinity = (a, b) => {
+export affinity = (a, b) => {
   rootA = root(a)
-  lengA = length(a)
-  scopA = scopes(a)
   rootB = root(b)
-  lengB = length(b)
-  scopB = scopes(b)
-  return if (rootA == rootB) {
-    if (lengA == lengB) {
-      1
-    } else {
-      1
-    }
+  lenA = length(a)
+  lenB = length(b)
+  lenC = Math.max(lenA, lenB)
+  // return if (rootA == rootB) {
+  // Float.fromInteger(List.length(overlap(a, b)))
+  // } else do {
+  cont = _contiguous(a, b)
+  IO.pTrace("CONT", cont)
+  return if (cont.valid) {
+    List.length(cont.list) / lenC
   } else {
-    1
+    0
   }
 }

@@ -1,10 +1,12 @@
 import IO from "IO"
 import List from "List"
+import String from "String"
+
+import CopyEdit from "CopyEdit"
 
 import { Person } from "@/Person"
 import P from "@/Place"
 import R from "@/Relationship"
-import String from "@/String"
 import Tag from "@/Tag"
 
 
@@ -12,6 +14,7 @@ import Tag from "@/Tag"
 main = () => {
   brekk = Person("brekk")
   angelo = Person("angelo")
+  brian = Person("brian")
 
   rls = Tag.create(["slack", "rls"])
   berlin = Tag.create(["city", "Berlin"])
@@ -24,6 +27,7 @@ main = () => {
   paxton = Tag.create(["shop", "exotic", "Paxton Gate"])
 
   fp = Tag.create(["programming", "functional"])
+  barf = Tag.create(["company", "Protenus"])
 
   sorted = List.sortBy(Tag.compareTag, [rls, berlin, fanland, slack, fp, sf, tartine, paxton])
   IO.pTrace("SORTED", sorted)
@@ -31,12 +35,41 @@ main = () => {
   pipe(
     map(Tag.overlap(slack)),
     IO.pTrace("overlappies with company:Slack"),
-  )([rls, berlin, fanland, fp, sf, tartine, paxton])
-
+  )([rls, berlin, fanland, fp, sf, tartine, paxton, barf])
   pipe(
-    String.distance($, "dippy"),
+    CopyEdit.distance($, "dippy"),
     IO.pTrace("yo"),
   )("skippy")
+
+  pipe(
+    Tag.contains(tartine),
+    IO.pTrace("tartine cool?!"),
+  )(Tag.create(["cool", "company", "shop", "bakery", "Tartine"]))
+
+
+  pipe(
+    Tag.isLeftConnected($, Tag.create(["c", "d", "e"])),
+    IO.pTrace("ABC x CDE"),
+  )(Tag.create(["a", "b", "c"]))
+
+  pipe(
+    Tag.contains(Tag.create(["cool", "company", "shop", "bakery", "Tartine"])),
+    IO.pTrace("tartine no cool?!"),
+  )(tartine)
+
+  pipe(
+    Tag.contiguousOverlap($, Tag.create(["c", "d", "e"])),
+    IO.pTrace("contiguous overlap"),
+  )(Tag.create(["a", "b", "c", "d"]))
+  pipe(
+    Tag.contiguousOverlap($, Tag.create(String.split("", "abcde"))),
+    IO.pTrace("contiguous overlap"),
+  )(Tag.create(String.split("", "cdef")))
+
+  pipe(
+    Tag.connect(Tag.create(["alpha", "beta", "gamma"])),
+    IO.pTrace("check!"),
+  )(Tag.create(["beta", "gamma", "delta", "epsilon", "zeta"]))
 
   pipe(
     R.vaguelyAcquaint(brekk),

@@ -17,9 +17,9 @@
       "minVersion": "0.0.6"
     },
     {
-      "url": "https://github.com/brekk/copyedit/archive/refs/tags/v0.0.1.zip",
+      "url": "https://github.com/brekk/copyedit/archive/refs/tags/v0.0.2.zip",
       "description": "CopyEdit",
-      "minVersion": "0.0.1"
+      "minVersion": "0.0.2"
     }
   ]
 }
